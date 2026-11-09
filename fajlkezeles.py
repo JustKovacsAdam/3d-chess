@@ -1,7 +1,12 @@
-import math
 import osztalyok
+
+
 def betoltes(fajlnev):
-    f = open(fajlnev, "rt",encoding='utf-8')
+    with open(fajlnev, "rt", encoding='utf-8') as f:
+        return _beolvas(f)
+
+
+def _beolvas(f):
     tabla = []
     for i in range(4):
         tabla.append([])
@@ -17,7 +22,6 @@ def betoltes(fajlnev):
             break
         if sor == "\n":
             y+=1
-            print()
             continue
         sor = sor.rstrip("\n")
         adatok = sor.split(";")
@@ -53,12 +57,21 @@ def betoltes(fajlnev):
         z += 1
         if z == 4:
             z = 0
-        
-    f.close()
+
+    # Hiányos / sérült mentés esetén hibát dobunk, hogy új játék induljon
+    for sik in tabla:
+        for sor in sik:
+            if "" in sor:
+                raise ValueError("Hiányos mentésfájl")
     return tabla
 
+
 def mentes(fajlnev, tabla):
-    f = open(fajlnev, "wt",encoding='utf-8')
+    with open(fajlnev, "wt", encoding='utf-8') as f:
+        _kiir(f, tabla)
+
+
+def _kiir(f, tabla):
     for y in range(4):
         for z in range(4):
             sor = ""
@@ -66,10 +79,9 @@ def mentes(fajlnev, tabla):
                 elvalaszto = ";"
                 if x == 3:
                     elvalaszto = ""
-                if tabla[x][3-y][3-z] == None:
+                if tabla[x][3-y][3-z] is None:
                     sor += elvalaszto
                 else:
                     sor += str(tabla[x][3-y][3-z]) + elvalaszto
             f.write(f"{sor}\n")
         f.write("\n")
-    f.close()

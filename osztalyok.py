@@ -1,5 +1,3 @@
-import math
-
 #Bábu class. Itt jönnek létre a bábuk
 class Babu:
     #Bábu konstruktora
@@ -17,7 +15,7 @@ class Babu:
             szo += "kn:"
         else:
             szo += self.nev[0] + ":"
-        if self.elmozdult == False:
+        if not self.elmozdult:
             szo += "n"
         else:
             szo += "i"
@@ -69,7 +67,7 @@ class Babu:
         else:
             #Fehér paraszt lépései
             if self.szin == "feher":
-                if self.elmozdult == False:
+                if not self.elmozdult:
                     if  (rZ == -2 and rY == 0 and rX == 0):
                         return True
                 if (rZ == -1 and rY == 0 and rX == 0) \
@@ -80,7 +78,7 @@ class Babu:
                 return False
             #Fekete paraszt lépései
             else:
-                if self.elmozdult == False:
+                if not self.elmozdult:
                     if  (rZ == 2 and rY == 0 and rX == 0):
                         return True
                 if (rZ == 1 and rY == 0 and rX == 0) \
@@ -134,31 +132,31 @@ class Palya:
             babu2 = self.tabla[aX2][aY2][aZ2]
             #Királynak szabad-e az útja
             if babu1.nev == "kiraly":
-                if babu2 == None:
+                if babu2 is None:
                     return True
                 if babu1.szin != babu2.szin:
                     return True
             #Lovasnak szabad-e az útja
             elif babu1.nev == "lovas":
-                if babu2 == None:
+                if babu2 is None:
                     return True
                 if babu1.szin != babu2.szin:
                     return True
             #Parasztnak szabad-e az útja
             elif babu1.nev == "paraszt":
                 if aZ1-aZ2 == 0:
-                    if babu2 == None:
+                    if babu2 is None:
                         return True
                 elif aX1-aX2 == 0 and aY1-aY2 == 0:
                     if abs(aZ1-aZ2) != 1:
-                        if self.tabla[aX1][aY1][aZ1-int((aZ1-aZ2)/abs(aZ1-aZ2))] == None and \
-                           babu2 == None:
+                        if self.tabla[aX1][aY1][aZ1-int((aZ1-aZ2)/abs(aZ1-aZ2))] is None and \
+                           babu2 is None:
                             return True
                     else:
-                        if babu2 == None:
+                        if babu2 is None:
                             return True
                 else:
-                    if babu2 != None:
+                    if babu2 is not None:
                         if babu1.szin != babu2.szin:
                             return True
             #Minden másnak(futó,királynõ,bástya) szabad-e az útja
@@ -176,13 +174,13 @@ class Palya:
                                 /abs(jelenlegi[2] - aZ2))
                     if jelenlegi[0] == aX2 and jelenlegi[1] == aY2 \
                        and jelenlegi[2] == aZ2:
-                        if babu2 != None:
+                        if babu2 is not None:
                                 if babu1.szin != babu2.szin:
                                     return True
                                 else:
                                     break
                         return True
-                    if self.tabla[jelenlegi[0]][jelenlegi[1]][jelenlegi[2]] != None:
+                    if self.tabla[jelenlegi[0]][jelenlegi[1]][jelenlegi[2]] is not None:
                         break
             return False
 
@@ -202,20 +200,20 @@ class Palya:
             for i in range(len(szimulacio.tabla)):
                 for j in range(len(szimulacio.tabla[i])):
                     for k in range(len(szimulacio.tabla[i][j])):
-                        if szimulacio.tabla[i][j][k] != None:
+                        if szimulacio.tabla[i][j][k] is not None:
                             if szimulacio.tabla[i][j][k].nev == "kiraly" \
                                and szimulacio.tabla[i][j][k].szin == babu1.szin:
                                 kiralyPoz = [i,j,k]
                                 break
-                    if kiralyPoz != None:
+                    if kiralyPoz is not None:
                         break
-                if kiralyPoz != None:
+                if kiralyPoz is not None:
                     break
             #Tesztelni hogy a király a szimulált lépés után is sakkba van-e
             for i in range(len(szimulacio.tabla)):
                 for j in range(len(szimulacio.tabla[i])):
                     for k in range(len(szimulacio.tabla[i][j])):
-                        if szimulacio.tabla[i][j][k] != None:
+                        if szimulacio.tabla[i][j][k] is not None:
                             if szimulacio.tabla[i][j][k].szin != babu1.szin:
                                 rX = kiralyPoz[0]-i
                                 rY = kiralyPoz[1]-j

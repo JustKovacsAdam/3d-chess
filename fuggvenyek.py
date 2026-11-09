@@ -1,28 +1,39 @@
+import os
 import pygame
-import math
 import osztalyok
 import fajlkezeles
 
 
 aHossz = 750
 aSzelesseg = 500
-ablak = pygame.display.set_mode((aSzelesseg,aHossz))
+ablak = None  # a kirajzol() hozza létre, a pygame.init() után
 
-#Rekurzív kitöltõ eszköz
+# A fájlok elérési útja a program mappájához képest, így bárhonnan indítható
+MAPPA = os.path.dirname(os.path.abspath(__file__))
+KEPEK = os.path.join(MAPPA, "Kepek")
+MENTES = os.path.join(MAPPA, "mentes.txt")
+
+BABU_NEVEK = ["bastya", "lovas", "futo", "kiralyno", "kiraly", "paraszt"]
+BABU_FAJLOK = ["Bastya", "Lovas", "Futo", "Kiralyno", "Kiraly", "Paraszt"]
+_kepek = {}
+
+#Kitöltõ eszköz (iteratív, hogy ne fusson bele a rekurziós korlátba)
 def kitoltes(regiSzin,ujSzin, x, y):
-    ablak.set_at((x,y),ujSzin)
-    if x+1 < aSzelesseg:
-        if ablak.get_at((x+1,y)) == regiSzin:
-            kitoltes(regiSzin,ujSzin,x+1,y)
-    if x-1 >= 0:
-        if ablak.get_at((x-1,y)) == regiSzin:
-            kitoltes(regiSzin,ujSzin,x-1,y)
-    if y+1 < aHossz:
-        if ablak.get_at((x,y+1)) == regiSzin:
-            kitoltes(regiSzin,ujSzin,x,y+1)
-    if y-1 >= 0:
-        if ablak.get_at((x,y-1)) == regiSzin:
-            kitoltes(regiSzin,ujSzin,x,y-1)
+    regiSzin = ablak.map_rgb(regiSzin)
+    ujSzin = ablak.map_rgb(ujSzin)
+    if regiSzin == ujSzin:
+        return
+    with pygame.PixelArray(ablak) as pixelek:
+        pixelek[x, y] = ujSzin
+        verem = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+        while verem:
+            x, y = verem.pop()
+            if x < 0 or x >= aSzelesseg or y < 0 or y >= aHossz:
+                continue
+            if pixelek[x, y] != regiSzin:
+                continue
+            pixelek[x, y] = ujSzin
+            verem.extend(((x+1, y), (x-1, y), (x, y+1), (x, y-1)))
 
 #Kirajzolja a tábla körvonalait
 def korvonalak():
@@ -48,7 +59,7 @@ def szinezesek(szabaly):
             y = 150 * j
             for k in range(4):
                 z = 25 * k
-                if szabaly != None:
+                if szabaly is not None:
                     if szabaly[i][j][k] == 1:
                         kitoltes((97,192,255),(255,0,0),sX+x+z,sY-y-z)
                         continue
@@ -63,32 +74,22 @@ def szinezesek(szabaly):
 
 #Megjeleníti a bábukat a táblán
 def babukMegjelenitese(tabla):
-    s = "FeherBastya:FeherLovas:FeherFuto:FeherKiralyno:FeherKiraly:FeherParaszt" \
-        + ":FeketeBastya:FeketeLovas:FeketeFuto:FeketeKiralyno:FeketeKiraly:FeketeParaszt"
-    adatok = s.split(":")
-    babuk = [""]*12
-    for i in range(len(babuk)):
-        babuk[i] = pygame.image.load(("Kepek/" + adatok[i] + ".png"))
-        babuk[i] = pygame.transform.scale(babuk[i],(32,32))
     for x in range(4):
         for y in range(4):
             for z in range(4):
-                if tabla[x][y][z] != None:
-                    szinPont = 0
-                    if tabla[x][y][z].szin == "fekete":
-                        szinPont += 6
-                    if tabla[x][y][z].nev == "bastya":
-                        ablak.blit(babuk[szinPont+0],(121+z*25+x*50,610-z*25-y*150))
-                    elif tabla[x][y][z].nev == "lovas":
-                        ablak.blit(babuk[szinPont+1],(121+z*25+x*50,610-z*25-y*150))
-                    elif tabla[x][y][z].nev == "futo":
-                        ablak.blit(babuk[szinPont+2],(121+z*25+x*50,610-z*25-y*150))
-                    elif tabla[x][y][z].nev == "kiralyno":
-                        ablak.blit(babuk[szinPont+3],(121+z*25+x*50,610-z*25-y*150))
-                    elif tabla[x][y][z].nev == "kiraly":
-                        ablak.blit(babuk[szinPont+4],(121+z*25+x*50,610-z*25-y*150))
-                    else:
-                        ablak.blit(babuk[szinPont+5],(121+z*25+x*50,610-z*25-y*150))
+                babu = tabla[x][y][z]
+                if babu is not None:
+                    kep = _kepek[(babu.szin, babu.nev)]
+                    ablak.blit(kep,(121+z*25+x*50,610-z*25-y*150))
+
+#A képeket egyszer töltjük be, nem minden újrarajzolásnál
+def kepekBetoltese():
+    for szin, elotag in (("feher", "Feher"), ("fekete", "Fekete")):
+        for nev, fajl in zip(BABU_NEVEK, BABU_FAJLOK):
+            kep = pygame.image.load(os.path.join(KEPEK, elotag + fajl + ".png")).convert_alpha()
+            _kepek[(szin, nev)] = pygame.transform.scale(kep,(32,32))
+    kep = pygame.image.load(os.path.join(KEPEK, "Ujrakezdes.png")).convert_alpha()
+    _kepek["ujrakezdes"] = pygame.transform.scale(kep,(50,50))
 def kattintas():
     x = None
     y = None
@@ -158,10 +159,15 @@ def hovaLephet(sakktabla,xyz):
     return lepesek
 
 def lepes(sakktabla, xyz1,xyz2):
-    sakktabla.tabla[xyz2[0]][xyz2[1]][xyz2[2]] = sakktabla.tabla[xyz1[0]][xyz1[1]][xyz1[2]]
+    babu = sakktabla.tabla[xyz1[0]][xyz1[1]][xyz1[2]]
+    babu.elmozdult = True  # különben a paraszt mindig léphetne kettõt
+    sakktabla.tabla[xyz2[0]][xyz2[1]][xyz2[2]] = babu
     sakktabla.tabla[xyz1[0]][xyz1[1]][xyz1[2]] = None
 def kirajzol():
+    global ablak
     pygame.init()
+    ablak = pygame.display.set_mode((aSzelesseg,aHossz))
+    kepekBetoltese()
     ora = pygame.time.Clock()
     pygame.display.set_caption("3D Chess")
     
@@ -178,14 +184,14 @@ def kirajzol():
         for esemeny in pygame.event.get():
             if esemeny.type == pygame.MOUSEBUTTONDOWN:
                 click = kattintas()
-                if click != None:
+                if click is not None:
                     if click == "reset":
                         sakktabla.reset()
                         kor = "feher"
                         kivalasztott = None
                         specialis = None 
                     else:
-                        if kivalasztott != None:
+                        if kivalasztott is not None:
                             if specialis[click[0]][click[1]][click[2]] == 1:
                                 lepes(sakktabla,kivalasztott,click)
                                 if kor == "feher":
@@ -196,7 +202,7 @@ def kirajzol():
                             specialis = None       
                         else:
                             kivalasztott = click
-                            if sakktabla.tabla[kivalasztott[0]][kivalasztott[1]][kivalasztott[2]] != None:
+                            if sakktabla.tabla[kivalasztott[0]][kivalasztott[1]][kivalasztott[2]] is not None:
                                 if sakktabla.tabla[kivalasztott[0]][kivalasztott[1]][kivalasztott[2]].szin == kor:
                                     specialis = hovaLephet(sakktabla, kivalasztott)
                                 else:
@@ -211,7 +217,7 @@ def kirajzol():
                 rajzolj = True
                 
             if esemeny.type==pygame.QUIT:
-                fajlkezeles.mentes("mentes.txt",sakktabla.tabla)
+                fajlkezeles.mentes(MENTES,sakktabla.tabla)
                 fut = False
         pygame.display.update()
         ora.tick(30)
@@ -219,8 +225,8 @@ def kirajzol():
         if toltsdBe:
             toltsdBe = False
             try:
-                sakktabla.tabla = fajlkezeles.betoltes("mentes.txt")
-            except:
+                sakktabla.tabla = fajlkezeles.betoltes(MENTES)
+            except (OSError, ValueError, IndexError):
                 sakktabla.reset()
         
         if rajzolj:
@@ -228,10 +234,7 @@ def kirajzol():
             ablak.fill((97,192,255))
             korvonalak()
             szinezesek(specialis)
-            ujrakezdes = pygame.image.load("Kepek/Ujrakezdes.png")
-            ujrakezdes = pygame.transform.scale(ujrakezdes,(50,50))
-            ablak.blit(ujrakezdes,(425,25))
+            ablak.blit(_kepek["ujrakezdes"],(425,25))
             babukMegjelenitese(sakktabla.tabla)
 
     pygame.quit()
-    quit()
