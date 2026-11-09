@@ -1,4 +1,6 @@
+import asyncio
 import os
+import sys
 import pygame
 import osztalyok
 import fajlkezeles
@@ -17,23 +19,12 @@ BABU_NEVEK = ["bastya", "lovas", "futo", "kiralyno", "kiraly", "paraszt"]
 BABU_FAJLOK = ["Bastya", "Lovas", "Futo", "Kiralyno", "Kiraly", "Paraszt"]
 _kepek = {}
 
-#Kitöltõ eszköz (iteratív, hogy ne fusson bele a rekurziós korlátba)
-def kitoltes(regiSzin,ujSzin, x, y):
-    regiSzin = ablak.map_rgb(regiSzin)
-    ujSzin = ablak.map_rgb(ujSzin)
-    if regiSzin == ujSzin:
-        return
-    with pygame.PixelArray(ablak) as pixelek:
-        pixelek[x, y] = ujSzin
-        verem = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
-        while verem:
-            x, y = verem.pop()
-            if x < 0 or x >= aSzelesseg or y < 0 or y >= aHossz:
-                continue
-            if pixelek[x, y] != regiSzin:
-                continue
-            pixelek[x, y] = ujSzin
-            verem.extend(((x+1, y), (x-1, y), (x, y+1), (x, y-1)))
+#Egy mezõ kitöltése sokszöggel. Gyorsabb mint a pixelenkénti kitöltés,
+#ami a böngészõben (WebAssembly) érezhetõen lassú lenne.
+def mezoKitoltese(szin, x, y, z):
+    aX = 100 + 50*x + 25*z
+    aY = 650 - 150*y - 25*z
+    pygame.draw.polygon(ablak, szin, [(aX, aY), (aX+50, aY), (aX+75, aY-25), (aX+25, aY-25)])
 
 #Kirajzolja a tábla körvonalait
 def korvonalak():
@@ -49,27 +40,20 @@ def korvonalak():
             d = 25 * j
             pygame.draw.line(ablak,(0,0,0),(sX+d,sY+l-d),(sX+200+d,sY+l-d),5)
 
-#Kiszinezi a tábla mezõit(fekete-fehér)
+#Kiszinezi a tábla mezõit(fekete-fehér). A körvonalak ezután rajzolódnak rá.
 def szinezesek(szabaly):
-    sX = 125
-    sY = 638
     for i in range(4):
-        x = 50*i
         for j in range(4):
-            y = 150 * j
             for k in range(4):
-                z = 25 * k
-                if szabaly is not None:
-                    if szabaly[i][j][k] == 1:
-                        kitoltes((97,192,255),(255,0,0),sX+x+z,sY-y-z)
-                        continue
-                    elif szabaly[i][j][k] == 2:
-                        kitoltes((97,192,255),(0,255,0),sX+x+z,sY-y-z)
-                        continue
-                if (i+j+k) % 2 == 0:
-                    kitoltes((97,192,255),(0,0,0),sX+x+z,sY-y-z)
+                if szabaly is not None and szabaly[i][j][k] == 1:
+                    szin = (255,0,0)
+                elif szabaly is not None and szabaly[i][j][k] == 2:
+                    szin = (0,255,0)
+                elif (i+j+k) % 2 == 0:
+                    szin = (0,0,0)
                 else:
-                    kitoltes((97,192,255),(255,255,255),sX+x+z,sY-y-z)
+                    szin = (255,255,255)
+                mezoKitoltese(szin, i, j, k)
 
 
 #Megjeleníti a bábukat a táblán
@@ -163,7 +147,29 @@ def lepes(sakktabla, xyz1,xyz2):
     babu.elmozdult = True  # különben a paraszt mindig léphetne kettõt
     sakktabla.tabla[xyz2[0]][xyz2[1]][xyz2[2]] = babu
     sakktabla.tabla[xyz1[0]][xyz1[1]][xyz1[2]] = None
-def kirajzol():
+#Mentés/betöltés. Böngészõben a localStorage-ba ment, mert ott nincs
+#ablakbezárás esemény és a fájlrendszer sem marad meg újratöltés után.
+BONGESZO = sys.platform == "emscripten"
+
+def mentes(tabla, kor):
+    if BONGESZO:
+        import platform
+        platform.window.localStorage.setItem("sakk3d_tabla", fajlkezeles.szovegge(tabla))
+        platform.window.localStorage.setItem("sakk3d_kor", kor)
+    else:
+        fajlkezeles.mentes(MENTES, tabla)
+
+def betoltes():
+    if BONGESZO:
+        import platform
+        szoveg = platform.window.localStorage.getItem("sakk3d_tabla")
+        kor = platform.window.localStorage.getItem("sakk3d_kor")
+        if not szoveg:
+            raise ValueError("Nincs mentés")
+        return fajlkezeles.szovegbol(szoveg), (kor if kor in ("feher", "fekete") else "feher")
+    return fajlkezeles.betoltes(MENTES), "feher"
+
+async def kirajzol():
     global ablak
     pygame.init()
     ablak = pygame.display.set_mode((aSzelesseg,aHossz))
@@ -190,6 +196,8 @@ def kirajzol():
                         kor = "feher"
                         kivalasztott = None
                         specialis = None 
+                        if BONGESZO:
+                            mentes(sakktabla.tabla, kor)
                     else:
                         if kivalasztott is not None:
                             if specialis[click[0]][click[1]][click[2]] == 1:
@@ -198,6 +206,8 @@ def kirajzol():
                                     kor = "fekete"
                                 else:
                                     kor = "feher"
+                                if BONGESZO:
+                                    mentes(sakktabla.tabla, kor)
                             kivalasztott = None
                             specialis = None       
                         else:
@@ -217,23 +227,25 @@ def kirajzol():
                 rajzolj = True
                 
             if esemeny.type==pygame.QUIT:
-                fajlkezeles.mentes(MENTES,sakktabla.tabla)
+                mentes(sakktabla.tabla, kor)
                 fut = False
         pygame.display.update()
         ora.tick(30)
+        await asyncio.sleep(0)  # a böngészõnek vissza kell adni a vezérlést
 
         if toltsdBe:
             toltsdBe = False
             try:
-                sakktabla.tabla = fajlkezeles.betoltes(MENTES)
+                sakktabla.tabla, kor = betoltes()
             except (OSError, ValueError, IndexError):
                 sakktabla.reset()
+                kor = "feher"
         
         if rajzolj:
             rajzolj = False
             ablak.fill((97,192,255))
-            korvonalak()
             szinezesek(specialis)
+            korvonalak()
             ablak.blit(_kepek["ujrakezdes"],(425,25))
             babukMegjelenitese(sakktabla.tabla)
 

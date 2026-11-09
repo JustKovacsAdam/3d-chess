@@ -14,6 +14,36 @@ python main.py
 
 Needs Python 3.8+ and pygame 2.5+.
 
+## Playing in the browser
+
+This branch (`web-version`) also runs in the browser. [pygbag](https://github.com/pygame-web/pygbag)
+compiles CPython and pygame to WebAssembly, so the same Python code runs unchanged in the page.
+
+- Every push to `web-version` runs `.github/workflows/pages.yml`, which builds the game with pygbag
+  and publishes the result to the `gh-pages` branch.
+- Turn it on once in **Settings → Pages → Build and deployment**: Source **Deploy from a branch**,
+  branch **gh-pages**, folder **/ (root)**.
+- The game is then at `https://<user>.github.io/3d-chess/`.
+
+To build and test locally:
+
+```bash
+pip install pygbag
+python -m pygbag .
+```
+
+Then open http://localhost:8000. In the browser the game is saved to `localStorage` after every move,
+together with whose turn it is.
+
+Web-specific changes compared to `main`:
+
+- The game loop is `async` and yields to the browser every frame (`await asyncio.sleep(0)`),
+  which pygbag requires.
+- Board squares are filled with `pygame.draw.polygon` instead of a pixel-by-pixel flood fill. The
+  result is pixel-identical and it's much faster, which matters in WebAssembly.
+- Saving uses `localStorage` in the browser, since there's no window-close event and the virtual
+  file system is wiped on reload.
+
 ## How to play
 
 - White moves first. Players take turns.

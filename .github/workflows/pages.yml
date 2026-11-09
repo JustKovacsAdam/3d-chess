@@ -1,0 +1,43 @@
+name: Build web version and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [web-version]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pygbag
+        run: pip install "pygbag==0.9.3"
+
+      # Copy only the game files, so docs and other repo files aren't packed into the web build
+      - name: Stage game files
+        run: |
+          mkdir -p stage/3d-chess
+          cp main.py fuggvenyek.py osztalyok.py fajlkezeles.py stage/3d-chess/
+          cp -r Kepek stage/3d-chess/
+
+      - name: Build with pygbag (Python + pygame -> WebAssembly)
+        run: python -m pygbag --build --title "3D Chess" stage/3d-chess
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: stage/3d-chess/build/web
+          force_orphan: true

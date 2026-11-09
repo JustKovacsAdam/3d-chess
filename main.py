@@ -1,9 +1,10 @@
+import asyncio
 import fuggvenyek
 
 
-def main():
-    fuggvenyek.kirajzol()
+async def main():
+    await fuggvenyek.kirajzol()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

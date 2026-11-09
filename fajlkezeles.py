@@ -1,9 +1,20 @@
+import io
 import osztalyok
 
 
 def betoltes(fajlnev):
     with open(fajlnev, "rt", encoding='utf-8') as f:
         return _beolvas(f)
+
+
+def szovegbol(szoveg):
+    return _beolvas(io.StringIO(szoveg))
+
+
+def szovegge(tabla):
+    f = io.StringIO()
+    _kiir(f, tabla)
+    return f.getvalue()
 
 
 def _beolvas(f):
